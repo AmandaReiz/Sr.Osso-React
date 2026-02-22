@@ -4,20 +4,39 @@ import './App.css'
 function App() {
   const etapasChecklist = ["Gerar tema", "Gerar falas e cenas", "Gerar prompt IA", "Edição final"];
 
-  // ESTADO INICIAL
   const [roteiros, setRoteiros] = useState(() => {
     const salvo = localStorage.getItem('roteiros_sr_osso');
     return salvo ? JSON.parse(salvo) : [];
   });
   
+  const [arquivados, setArquivados] = useState(() => {
+    const salvo = localStorage.getItem('arquivados_sr_osso');
+    return salvo ? JSON.parse(salvo) : [];
+  });
+  
   const [novoTitulo, setNovoTitulo] = useState('');
 
-  // SALVAR AUTOMÁTICO
   useEffect(() => {
     localStorage.setItem('roteiros_sr_osso', JSON.stringify(roteiros));
-  }, [roteiros]);
+    localStorage.setItem('arquivados_sr_osso', JSON.stringify(arquivados));
+  }, [roteiros, arquivados]);
 
-  // FUNÇÕES
+  const handleDragStart = (e, index) => {
+    e.dataTransfer.setData("index", index);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, destIndex) => {
+    const sourceIndex = e.dataTransfer.getData("index");
+    const novosRoteiros = [...roteiros];
+    const [removido] = novosRoteiros.splice(sourceIndex, 1);
+    novosRoteiros.splice(destIndex, 0, removido);
+    setRoteiros(novosRoteiros);
+  };
+
   const adicionarRoteiro = () => {
     if (novoTitulo.trim()) {
       const novo = { id: Date.now(), titulo: novoTitulo, progresso: 0 };
@@ -34,8 +53,17 @@ function App() {
   };
 
   const excluir = (id) => {
-    // Agora exclui direto sem perguntas
     setRoteiros(roteiros.filter(r => r.id !== id));
+  };
+
+  const arquivar = (id) => {
+    const item = roteiros.find(r => r.id === id);
+    setArquivados([item, ...arquivados]);
+    setRoteiros(roteiros.filter(r => r.id !== id));
+  };
+
+  const excluirArquivado = (id) => {
+    setArquivados(arquivados.filter(r => r.id !== id));
   };
 
   const exportarJSON = () => {
@@ -66,7 +94,7 @@ function App() {
       <nav className="navbar">
         <div className="profile-section">
           <div className="profile-photo">
-            <img src="/sr.png" alt="Sr. Osso" onError={(e) => e.target.style.background='#6200ee'} />
+            <img src="sr.png" alt="Sr. Osso" onError={(e) => e.target.style.background='#6200ee'} />
           </div>
           <span className="profile-name">Sr. Osso</span>
         </div>
@@ -103,11 +131,25 @@ function App() {
       </header>
 
       <main id="container-roteiros">
-        {roteiros.map((roteiro) => (
-          <div className="card" key={roteiro.id}>
-            <button className="btn-excluir" onClick={() => excluir(roteiro.id)}>
-              <i className="fas fa-trash-can"></i>
-            </button>
+        {roteiros.map((roteiro, index) => (
+          <div 
+            className="card" 
+            key={roteiro.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, index)}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, index)}
+            style={{ cursor: 'grab' }}
+          >
+            <div className="card-top-buttons">
+              <button className="btn-excluir" onClick={() => excluir(roteiro.id)}>
+                <i className="fas fa-trash-can"></i>
+              </button>
+              <button className="btn-arquivar" onClick={() => arquivar(roteiro.id)} title="Arquivar Ideia">
+                <i className="fas fa-file-invoice"></i>
+              </button>
+            </div>
+
             <h2 className="card-titulo">{roteiro.titulo}</h2>
             
             <div className="barra-container">
@@ -132,6 +174,25 @@ function App() {
           </div>
         ))}
       </main>
+
+      {/* Seção de Arquivados com o texto alterado para SUCESSOS */}
+      {arquivados.length > 0 && (
+        <section className="arquivados-section">
+          <hr />
+          <h2 className="secao-titulo">📁 Sucessos</h2>
+          <div id="container-arquivados">
+            {arquivados.map((item) => (
+              <div className="card card-arquivado" key={item.id}>
+                <button className="btn-excluir" onClick={() => excluirArquivado(item.id)}>
+                  <i className="fas fa-trash-can"></i>
+                </button>
+                <h2 className="card-titulo">{item.titulo}</h2>
+                <span className="badge-sucesso">✅ Sucesso no Canal</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <footer>
         <p>Desenvolvido por <strong>Amanda Reis</strong></p>
